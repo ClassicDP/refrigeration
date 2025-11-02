@@ -46,7 +46,7 @@ function App() {
   const mainColRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLHeadingElement | null>(null);
   const [cellSize, setCellSize] = useState<number | null>(null);
-  const [hostHeight, setHostHeight] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const [cartWidth, setCartWidth] = useState<number>(180);
 
   useEffect(() => {
@@ -58,24 +58,34 @@ function App() {
 
     const GAP_PX = 2; // Tailwind gap-0.5 => 2px при базовом 16px
     const compute = () => {
-      const w = el.clientWidth; // без дробей и без скроллбаров
-      // высота доступной области: высота колонки минус заголовок и подсказка
+      // Определяем мобильное устройство по ширине экрана и touch-capability
+      const isMobileDevice = window.innerWidth < 1024 || ('ontouchstart' in window && window.innerWidth < 1280);
+      setIsMobile(isMobileDevice);
+
       const headerH = headerRef.current ? headerRef.current.offsetHeight : 0;
       const colH = col.clientHeight;
       const h = Math.max(0, colH - headerH);
-      setHostHeight(h);
+      const w = col.clientWidth;
+      
       const maxCellByWidth = Math.floor((w - GAP_PX * (cols - 1)) / cols);
       const maxCellByHeight = Math.floor((h - GAP_PX * (rows - 1)) / rows);
       let size = Math.max(0, Math.min(maxCellByWidth, maxCellByHeight));
-      // Защитный цикл от погрешностей округления и DPR
-      while (
-        size > 0 && (
-          cols * size + GAP_PX * (cols - 1) > w ||
-          rows * size + GAP_PX * (rows - 1) > h
-        )
-      ) {
-        size -= 1;
+      
+      // Защитный цикл от погрешностей округления и DPR (только для desktop, чтобы всё влезало)
+      if (!isMobileDevice) {
+        while (
+          size > 0 && (
+            cols * size + GAP_PX * (cols - 1) > w ||
+            rows * size + GAP_PX * (rows - 1) > h
+          )
+        ) {
+          size -= 1;
+        }
+      } else {
+        // На мобильных разрешаем чуть больший размер и включаем прокрутку
+        size = Math.max(60, size);
       }
+      
       setCellSize(size);
 
       // Ширина корзины = вся ширина минус точная ширина сетки и отступы слева
@@ -121,11 +131,14 @@ function App() {
             Выберите десерты
           </h1>
           
-          {/* Сетка 8x5 оптимизированная для вертикального экрана */}
-          <div ref={mainColRef} className="flex-1 flex items-center justify-end min-h-0">
+          {/* Сетка 8x5 — на десктопе точное размещение, на мобильных добавлена прокрутка */}
+          <div 
+            ref={mainColRef} 
+            className={`flex-1 flex items-center justify-center min-h-0 ${isMobile ? 'overflow-auto smooth-scroll touch-pan' : 'overflow-hidden'}`}
+          >
             {/* Host defines available space for the grid; ResizeObserver keeps sizing exact */}
-            <div ref={gridHostRef} className="w-full" style={hostHeight != null && cellSize != null ? { height: hostHeight, maxWidth: 'none', width: cols * cellSize + (cols - 1) * 2 } : hostHeight != null ? { height: hostHeight } : undefined}>
-              <div className="grid w-full h-full grid-cols-8 grid-rows-5 gap-0.5" style={gridStyle}>
+            <div ref={gridHostRef} className="inline-block" style={cellSize != null ? { width: cols * cellSize + (cols - 1) * 2, height: rows * cellSize + (rows - 1) * 2 } : undefined}>
+              <div className="grid grid-cols-8 grid-rows-5 gap-0.5" style={gridStyle}>
               {Array.from({ length: rows }, (_, row) => 
                 Array.from({ length: cols }, (_, col) => {
                   const dessert = desserts.find(d => d.position.row === row && d.position.col === col);

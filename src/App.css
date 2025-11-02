@@ -25,6 +25,17 @@ body {
   min-width: 44px;
 }
 
+/* Smooth scrolling и touch pan для свайпа на мобильных */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.touch-pan {
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+}
+
 /* Лимитируем количество строк текста */
 .line-clamp-2 {
   display: -webkit-box;
